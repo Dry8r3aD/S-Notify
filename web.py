@@ -9,6 +9,64 @@ import requests
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 
+import argparse
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+
+def make_weather_image(data):
+    min_temp = 9999
+    max_temp = -9999
+
+    temps = []
+    times = [] 
+    i = 0
+    base_time = int(data[0]['time'])
+    for d in data:
+        temp = float(d['temp'])
+        temps.append(temp)
+        times.append(base_time + i*3)
+        i = i+1
+        if temp < min_temp:
+            min_temp = temp
+        if temp > max_temp:
+            max_temp = temp
+    plt.title("Today's Temperature")
+    plt.xlabel('Time')
+    plt.ylabel('Temp')
+    plt.plot(times,temps,'b-')
+    plt.plot(times,temps,'ro')
+    plt.grid(True)
+    plt.axis( [base_time,base_time + len(data)*3 , min_temp - 5, max_temp +5])
+    plt.savefig("test.png")
+
+
+def upload_file(channels,token,filename,title,initial_comment):
+	data = {
+		'channels' : channels,
+		'token' : token,
+		'filename' : filename,
+		'title' : title,
+		'username':'날씨맨',
+		'initial_comment' : initial_comment
+	}
+	with open(filename,'rb') as f:
+		api_name = 'files.upload'
+		r = requests.post('https://slack.com/api/{api_name}'.format(api_name = api_name),data=data,files={'file':f})
+
+
+def post_message(message,token):
+	data = {
+		'channel' : 'wf-team',
+		'text' : message,
+		'token' : token,
+		'username' : '날씨맨'
+	}
+	api_name = 'chat.postMessage'
+	r = requests.post('https://slack.com/api/{api_name}'.format(api_name = api_name),data=data)
+
+
 def crawl_region_weather(region_code):
     url = 'http://www.kma.go.kr/wid/queryDFSRSS.jsp?zone=%s' % region_code 
     source_code  = requests.get(url)
@@ -152,6 +210,7 @@ def load_slack_key():
         return 
     with open('slack_key','r') as f:
         g_registered_slack_key = f.read()
+	g_registered_slack_key = g_registered_slack_key.replace('\n','').strip()
 
 def save_slack_key():
     if g_registered_slack_key == "":
@@ -172,20 +231,27 @@ def register_slack_key(arg_list):
     return None
 
 def load_channel():
-    global g_registered_slack_channel
-    if os.path.exists('slack_channel') is False:
-        return
-    with open('slack_channel','r') as f:
-        g_registered_slack_channel = f.readlines()
-
+	global g_registered_slack_channel
+	if os.path.exists('slack_channel') is False:
+		return
+	with open('slack_channel','r') as f:
+		g_registered_slack_channel = f.readlines()
+	tmp_list = []
+	for slack_channel in g_registered_slack_channel:
+	 	slack_channel = slack_channel.replace('\n','')
+		slack_channel = slack_channel.strip()
+		if slack_channel != '':
+			tmp_list.append(slack_channel)
+	g_registered_slack_channel = tmp_list
 
 def save_channel():
-    if g_registered_slack_channel.count == 0:
-        return False
-    with open('slack_channel','w') as f:
-        for slack_channel in g_registered_slack_channel:
-            f.write(slack_channel)
-    return True
+	if g_registered_slack_channel.count == 0:
+		return False
+	with open('slack_channel','w') as f:
+		for slack_channel in g_registered_slack_channel:
+			f.write(slack_channel)
+			f.write('\n')
+	return True
 
 def register_channel(arg_list):
     n = raw_input('채널을 입력하세요:')
@@ -218,44 +284,11 @@ def unregister_channel(arg_list):
         print '채널이 삭제 되었습니다.'
     except ValueError:
         print '채널삭제 실패하였습니다.'
-    
-    
-def register_day_of_the_week(arg_list):
-    day_of_the_week = arg_list[0]
-    g_registered_day_of_the_week.add(day_of_the_week)
-    print '%s요일이 등록되었습니다.' % day_of_the_week
-    return None
 
-def unregister_day_of_the_week(arg_list):
-    build_str = ''
-    for day_of_the_week in g_registered_day_of_the_week:
-        build_str = day_of_the_week+' '
-    if len(g_registered_day_of_the_week) == 0:
-        print '등록된 요일이 없습니다.'
-        return None
-    print build_str+' 요일이 등록되어 있습니다.'
-    while True:
-        n =  raw_input('삭제할 요일을 입력하세요 (월~일):')
-        print n
-        n = n.strip()
-        if n == '월'\
-            or n == '화'\
-            or n == '수'\
-            or n == '목'\
-            or n == '금'\
-            or n == '토'\
-            or n == '일':
-            break
-    try:    
-        g_registered_day_of_the_week.remove(n)
-        print '요일이 삭제되었습니다.'
-    except KeyError:
-        print '요일이 등록되어 있지 않습니다.'
-    return None
-
-def make_current_crontab_file():
-    try:
-        ret = subprocess.call('crontab -l > tmp_crontab',shell=True)
+def make_current_crontab_file(filename):
+    try: 
+	cmd_str = 'crontab -l > %s' % filename
+        ret = subprocess.call(cmd_str,shell=True)
         if ret < 0 :
             print '크론탭불러오기 실패'
             return False
@@ -264,34 +297,45 @@ def make_current_crontab_file():
         return False
     return True
 
-def get_crontab_info():
-    if make_current_crontab_file() == False:
-        return None
-    save_lines = []
-    with open('tmp_crontab','r') as f:
-        lines  = f.readlines()
-        for line in lines:
-            print g_program_name
-            if line.find(g_program_name) != -1:
-                splited = line.split(' ')
-                save_lines.append({ 'min' : splited[0] , 'hour' : splited[1] , 'dow' : splited[4] })
-    return save_lines
+def apply_crontab_file(filename):
+	try:
+		cmd_str = 'crontab %s' % filename
+		ret = subprocess.call(cmd_str,shell=True)
+		if ret < 0 :
+			print '크론탭 등록 실패'
+	except OSError:
+		print '크론탭 등록 실패'
+
+def get_crontab_info(arg_list):
+
+	tmp_crontab_file = 'tmp_crontab'
+	if make_current_crontab_file(tmp_crontab_file) == False:
+		return None
+	save_lines = []
+	with open(tmp_crontab_file,'r') as f:
+		lines  = f.readlines()
+		for line in lines:
+			if line.find(g_program_name) != -1:
+				splited = line.split(' ')
+				display_str = '분- ' + splited[0] + '    시간- ' + splited[1] + '    요일- '+ splited[4]
+				save_lines.append({'display':display_str, 'sub':unregister_time , 'args':[line]})
+	if len(save_lines) == 0:
+		print '삭제할 리스트가 없습니다.'
+		return None
+	return save_lines
 
 def make_crontab_line(info):
-    build_str =  info['min'] + ' ' + info['hour'] + ' * * ' + info['dow'] +' ' + g_program_name +'\n'
+    build_str =  str(info['min']) + ' ' + str(info['hour']) + ' * * ' + info['dow'] +' ' + g_program_name +' -b True \n'
     return build_str
 
 def set_crontab_info(info):
-    make_current_crontab_file()
-    crontab_line = make_crontab_line(info)
-    with open('tmp_crontab','a') as f:
-        f.write(crontab_line)
-    try:
-        ret = subprocess.call('crontab tmp_crontab',shell=True)
-        if ret < 0 :
-            print '크론탭 등록 실패'
-    except OSError:
-        print '크론탭 등록 실패'
+	tmp_crontab_file = 'tmp_crontab'
+
+	make_current_crontab_file(tmp_crontab_file)
+	crontab_line = make_crontab_line(info)
+	with open(tmp_crontab_file,'a') as f:
+		f.write(crontab_line)
+	apply_crontab_file(tmp_crontab_file)
 
 def print_dow(dow):
     if len(dow) == 0 :
@@ -303,11 +347,6 @@ def print_dow(dow):
     for d in dow:
         build_str = build_str + dow_strs[d] + ' '
     print '선택요일:' + build_str 
-
-def to_string_dow(dow):
-    build_str = ''
-    for d in dow:
-        build_str = build_str + d + ','
 
 def register_time(arg_list):
     dow = []
@@ -342,23 +381,42 @@ def register_time(arg_list):
         if n >= 0 or n  < 24:
             t_hour = n
             break
+
     while True:
         n = input('등록할 분을 입력하세요 (0 ~59):')
         if n >= 0 or n < 59:
             t_min = n
             break
 
-#   crontab_info = get_crontab_info()
     dow = [ str(i) for i in dow]
     set_crontab_info({'min':t_min,'hour':t_hour,'dow':','.join(dow)})
     return None
 
 def unregister_time(arg_list):
-    return None
+	org_str = arg_list[0]
+	tmp_crontab_file =  'tmp_crontab'
+	tmp_crontab_file_2 = 'tmp_crontab_2'
+	
+	make_current_crontab_file(tmp_crontab_file)
+	with open(tmp_crontab_file_2,'w') as wf:
+		with open(tmp_crontab_file,'r') as rf:
+			lines  = rf.readlines()
+			for line in lines:
+				if line.find(org_str) == -1:
+					wf.write(line)
+	apply_crontab_file(tmp_crontab_file_2)
+
+def post_test_weather_message(arg_list):
+	slack_channels = ','.join(g_registered_slack_channel)
+	for region in g_registered_region_list:
+		ws = parse_weather(region['key'])
+		make_weather_image(ws)
+		upload_file(slack_channels,g_registered_slack_key,'test.png','날씨정보','맑을까?')
+	return None
 
 ALARM_CMD_LIST = [
     {'display' : '시간등록', 'sub':register_time,'args':None},
-    {'display' : '시간삭제', 'sub':unregister_time,'args':None}
+    {'display' : '시간삭제', 'sub':get_crontab_info, 'args':None}
 ]
 
 ROOT_CMD_LIST = [
@@ -367,7 +425,8 @@ ROOT_CMD_LIST = [
     {'display' : '알림시간 설정', 'sub' : ALARM_CMD_LIST, 'args' : None },
     {'display' : '슬랙 키등록', 'sub' : register_slack_key , 'args' : None },
     {'display' : '채널등록', 'sub' : register_channel , 'args' : None},
-    {'display' : '채널삭제', 'sub' : unregister_channel , 'args' : None}
+    {'display' : '채널삭제', 'sub' : unregister_channel , 'args' : None},
+    {'display' : '테스트보내기', 'sub' : post_test_weather_message  , 'args' : None}
 ] 
 
 def print_cmd(current_cmd_list):
@@ -407,48 +466,49 @@ class CmdContext(object):
 
 
 if __name__ == "__main__":
-    global g_program_name
-    global g_registered_day_of_the_week
-    global g_registered_time
-    global g_registered_region_list
-    global g_registered_slack_key
-    global g_registered_slack_channel
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-b')
+	args = parser.parse_args()
+	global g_program_name
+	global g_registered_region_list
+	global g_registered_slack_key
+	global g_registered_slack_channel
 
-    g_program_name = os.path.abspath(sys.argv[0])
-    g_registered_day_of_the_week =set()
-    g_registered_time = []
-    g_registered_region_list = []
-    g_registered_slack_key = ""
-    g_registered_slack_channel = []
+	g_program_name = os.path.abspath(sys.argv[0])
+	g_registered_region_list = []
+	g_registered_slack_key = ""
+	g_registered_slack_channel = []
+	
+	load_region()
+	load_channel()
+	load_slack_key()
+	if args.b is not None:
+		post_test_weather_message(None)
+		exit(0)
 
-    load_region()
-    load_channel()
-    load_slack_key()
-    cc = CmdContext()
+	cc = CmdContext()
 
-#    l = get_crontab_info()
-#    print l
-    while True:
-        if type(cc.current_cmd_list) is type(test_func):
-            cc.current_cmd_list = cc.current_cmd_list(cc.current_cmd_list_arg)
-            if cc.current_cmd_list is None:
-                cc.clear()
-        print_cmd(cc.current_cmd_list)
-       
-        n = input('명령어를 입력하세요:')
-       
-        if len(cc.current_cmd_list) < n or n < 0:
-            continue
-        if len(cc.current_cmd_list) == n:
-            if cc.current_cmd_list == ROOT_CMD_LIST:
-                print '프로그램을 종료합니다.'
-                exit(0)
-            else:
-                cc.pop()
-                continue
-        cc.push()
-        cc.current_cmd_list_arg = cc.current_cmd_list[n]['args']
-        cc.current_cmd_list = cc.current_cmd_list[n]['sub']
-        if cc.current_cmd_list is None:
-            cc.clear()
+	while True:
+		if type(cc.current_cmd_list) is type(test_func):
+			cc.current_cmd_list = cc.current_cmd_list(cc.current_cmd_list_arg)
+			if cc.current_cmd_list is None:
+				cc.clear()
+		print_cmd(cc.current_cmd_list)
+		 
+		n = input('명령어를 입력하세요:')
+		 
+		if len(cc.current_cmd_list) < n or n < 0:
+		 	continue
+		if len(cc.current_cmd_list) == n:
+			if cc.current_cmd_list == ROOT_CMD_LIST:
+				print '프로그램을 종료합니다.'
+				exit(0)
+			else:
+				cc.pop()
+				continue
+		cc.push()
+		cc.current_cmd_list_arg = cc.current_cmd_list[n]['args']
+		cc.current_cmd_list = cc.current_cmd_list[n]['sub']
+		if cc.current_cmd_list is None:
+			cc.clear()
 

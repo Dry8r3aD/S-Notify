@@ -39,6 +39,28 @@ def make_weather_image(data):
     plt.savefig("test.png")
 
 
+def upload_file(channels,token,filename,title,initial_comment):
+	data = {
+		'channels' : channels,
+		'token' : token,
+		'filename' : filename,
+		'title' : title,
+		'username':'날씨맨',
+		'initial_comment' : initial_comment
+#    	'as_user' :,
+#		'parse' :,
+#		'link_names' :,
+#		'attachments' :,
+#		'unfurl_links' :,
+#		'unfurl_media' :,
+#		'icon_url':,
+#		'icon_emoji':
+	}
+	with open(filename,'rb') as f:
+		api_name = 'files.upload'
+		r = requests.post('https://slack.com/api/{api_name}'.format(api_name = api_name),data=data,files={'file':f})
+
+
 def post_message(message,token):
 	data = {
 		'channel' : 'wf-team',
@@ -65,14 +87,15 @@ if __name__ == "__main__":
 
 #	if args.m and args.t: 
 #    	postMessage(args.m,args.t)
-    ws = parse_weather('1156054000')
-    make_weather_image(ws)
-    build_str = ""
-    w = ws[0]
+	upload_file('wf-team,@ywlee','xoxp-2745544825-39319659127-69811901892-caea7c9848','ss.png','dsfd','sdfsdf')
+#    ws = parse_weather('1156054000')
+#   make_weather_image(ws)
+#   build_str = ""
+#    w = ws[0]
 #   for w in ws:
-    for k in w.keys():
-        v = w[k]
-        build_str = build_str +  str(k)  + ' - ' + str(v) + ' '
-    print build_str
+#    for k in w.keys():
+#        v = w[k]
+#        build_str = build_str +  str(k)  + ' - ' + str(v) + ' '
+#    print build_str
 #    post_message(build_str,  'xoxp-2745544825-39319659127-67642701462-fbc21db3ca')
 
