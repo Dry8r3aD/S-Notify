@@ -41,5 +41,5 @@ if __name__ == "__main__":
         v = w[k]
         build_str = build_str +  str(k)  + ' - ' + str(v) + ' '
 
-    postMessage(build_str,  'xoxp-2745544825-39319659127-67642701462-fbc21db3ca')
+#    postMessage(build_str,  'xoxp-2745544825-39319659127-67642701462-fbc21db3ca')
 
