@@ -1,13 +1,15 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+
 import requests
 import argparse
 
-
-
-def postMessage(message):
+def postMessage(message,token):
 	data = {
 		'channel' : 'wf-team',
 		'text' : message,
-		'token' : 'xoxp-2745544825-39319659127-44099752723-933c5d1165',
+		'token' : token,
 		'username' : 'name'
 #    	'as_user' :,
 #		'parse' :,
@@ -24,7 +26,9 @@ def postMessage(message):
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-m')
+	parser.add_argument('-t')
 	args = parser.parse_args()
-	if args.m: 
-		postMessage(args.m)
+	if args.m and args.t: 
+		postMessage(args.m,args.t)
+
 
