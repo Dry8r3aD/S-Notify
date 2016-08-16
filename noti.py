@@ -7,7 +7,39 @@ import argparse
 
 from web import parse_weather
 
-def postMessage(message,token):
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+
+
+def make_weather_image(data):
+    min_temp = 9999
+    max_temp = -9999
+
+    temps = []
+    times = [] 
+    i = 0
+    for d in data:
+        temp = float(d['temp'])
+        temps.append(temp)
+        times.append(i*3)
+        i = i+1
+        if temp < min_temp:
+            min_temp = temp
+        if temp > max_temp:
+            max_temp = temp
+    plt.title("Today's Temperature")
+    plt.xlabel('Time')
+    plt.ylabel('Temp')
+    plt.plot(times,temps,'b-')
+    plt.plot(times,temps,'ro')
+    plt.grid(True)
+    plt.axis( [0,len(data)*3 , min_temp - 5, max_temp +5])
+    plt.savefig("test.png")
+
+
+def post_message(message,token):
 	data = {
 		'channel' : 'wf-team',
 		'text' : message,
@@ -34,12 +66,13 @@ if __name__ == "__main__":
 #	if args.m and args.t: 
 #    	postMessage(args.m,args.t)
     ws = parse_weather('1156054000')
+    make_weather_image(ws)
     build_str = ""
     w = ws[0]
 #   for w in ws:
     for k in w.keys():
         v = w[k]
         build_str = build_str +  str(k)  + ' - ' + str(v) + ' '
-
-#    postMessage(build_str,  'xoxp-2745544825-39319659127-67642701462-fbc21db3ca')
+    print build_str
+#    post_message(build_str,  'xoxp-2745544825-39319659127-67642701462-fbc21db3ca')
 
