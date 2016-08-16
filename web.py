@@ -276,6 +276,7 @@ def get_crontab_info():
                 splited = line.split(' ')
                 save_lines.append({ 'min' : splited[0] , 'hour' : splited[1] , 'dow' : splited[4] })
     return save_lines
+
 def make_crontab_line(info):
     build_str =  info['min'] + ' ' + info['hour'] + ' * * ' + info['dow'] +' ' + g_program_name +'\n'
     return build_str
